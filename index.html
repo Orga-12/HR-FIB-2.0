@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>FIB RankUp Tool</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #1b1b1b; color: #f0f0f0; padding: 20px; }
+    .container { max-width: 900px; margin: auto; }
+    h1 { color: #00cfff; text-align: center; margin-bottom: 20px; }
+    .section { background:#2c2c2c; padding:16px; border-radius:8px; margin-bottom:18px; }
+    textarea { width:100%; height:180px; background:#262626; color:#f0f0f0; border:1px solid #444; padding:10px; font-size:14px; border-radius:6px; }
+    input[type="text"], select, button { margin-top:10px; padding:12px; font-size:15px; border-radius:6px; border:1px solid #444; background:#262626; color:#f0f0f0; width:100%; box-sizing:border-box; }
+    button { cursor:pointer; background:#00aaff; color:white; font-weight:700; transition: background .18s ease; }
+    button:hover { background:#0088cc; }
+    pre { background:#232323; padding:16px; border-radius:6px; white-space:pre-wrap; color:#e8f8ff; }
+    label { display:block; margin-top:8px; color:#cfefff; font-weight:600; }
+    #memberSelect { height:200px; }
+    .muted { color:#9fb3c8; font-size:13px; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>FIB RankUp Tool</h1>
+
+  <div class="section">
+    <h2>1. Memberliste einfügen</h2>
+    <p class="muted">Format: <strong>ID TAB Name</strong> — z. B. <em>173608<TAB>Steve Cock</em></p>
+    <textarea id="memberInput" placeholder="Hier Memberliste einfügen..."></textarea>
+    <button onclick="importMembers()">Importieren</button>
+  </div>
+
+  <div class="section">
+    <h2>2. Member auswählen & Rang zuweisen</h2>
+    <label for="searchInput">Suchen:</label>
+    <input type="text" id="searchInput" placeholder="Mitglied suchen..." oninput="updateMemberSelect(this.value)">
+    <select id="memberSelect" size="8"></select>
+
+    <label for="rankSelect">Rang auswählen</label>
+    <select id="rankSelect">
+      <option value="">— Rang auswählen —</option>
+
+      <!-- added 7-8, 8-9, 9-10 etc. -->
+      <option value="7-8">7 → 8 — Agent in Education → Junior Agent</option>
+      <option value="8-9">8 → 9 — Junior Agent → Field Agent</option>
+      <option value="9-10">9 → 10 — Field Agent → First Class Agent</option>
+      <option value="10-13">10 → 13 — First Class Agent → Special Agent</option>
+      <option value="13-14">13 → 14 — Special Agent → Senior Agent</option>
+      <option value="14-15">14 → 15 — Senior Agent → Senior Special Agent</option>
+      <option value="15-16">15 → 16 — Senior Special Agent → Commander</option>
+
+      <option value="Double">Double RankUp / Sonderbeförderung</option>
+
+      <option value="EliteUp">RankUp auf Elite Agent</option>
+      <option value="EliteStay">Verbleib auf Elite Agent</option>
+
+      <option value="HC19">RankUp auf High Command → 19. Inspector (HC)</option>
+      <option value="19-20">19 → 20 — Inspector → Supervisory Special Agent</option>
+
+      <option value="20-22">20 → 22 — Supervisory Special Agent → Supervisory Head Agent</option>
+      <option value="22-23">22 → 23 — Supervisory Head Agent → Special Agent in Charge</option>
+    </select>
+
+    <button onclick="addRank()">Zur Queue hinzufügen</button>
+    <div class="muted">Tipp: Suche zuerst, klicke das gewünschte Mitglied, wähle Rank und dann "Zur Queue hinzufügen".</div>
+  </div>
+
+  <div class="section">
+    <h2>3. Ausgabe</h2>
+    <pre id="output"># Upranks vom <!-- Datum wird hier eingesetzt --></pre>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button onclick="generateOutput()">Generieren</button>
+      <button onclick="generateOutput(true)" style="background:#00d18a">Generieren + Kopieren</button>
+      <button onclick="copyOutput()" style="background:#f0b400">Nur kopieren</button>
+    </div>
+  </div>
+
+  <div class="muted" style="text-align:right">Erstellt von Prince Suarez | 261820</div>
+</div>
+
+<script>
+/* Daten */
+let memberList = [];   // {id,name}
+let queue = [];        // {member: {id,name}, rank}
+
+/* Reihenfolge & Labels (inkl. neu hinzugefügter 8-9 und 19-20) */
+const ORDER = [
+  "7-8","8-9","9-10","10-13","13-14","14-15","15-16",
+  "Double","EliteUp","EliteStay",
+  "HC19","19-20","20-22","22-23"
+];
+
+const RANK_LABEL = {
+  "7-8":"7. Agent in Education -> 8. Junior Agent",
+  "8-9":"8. Junior Agent -> 9. Field Agent",
+  "9-10":"9. Field Agent -> 10. First Class Agent",
+  "10-13":"10. First Class Agent -> 13. Special Agent",
+  "13-14":"13. Special Agent -> 14. Senior Agent",
+  "14-15":"14. Senior Agent -> 15. Senior Special Agent",
+  "15-16":"15. Senior Special Agent -> 16. Commander",
+  "Double":"Double RankUps | Sonderrankups",
+  "EliteUp":"RankUp auf Elite Agent",
+  "EliteStay":"Verbleib auf Elite Agents",
+  "HC19":"RankUp auf High Command -> 19. Inspector",
+  "19-20":"19. Inspector -> 20. Supervisory Special Agent",
+  "20-22":"20. Supervisory Special Agent -> 22. Supervisory Head Agent",
+  "22-23":"22. Supervisory Head Agent -> 23. Special Agent in Charge"
+};
+
+/* Importiert Members (ID TAB Name oder ID Space Name) */
+function importMembers(){
+  const raw = document.getElementById('memberInput').value;
+  if(!raw || !raw.trim()) { alert('Bitte Memberliste einfügen.'); return; }
+
+  const lines = raw.split('\n');
+  const newMembers = [];
+  for(let line of lines){
+    line = line.trim();
+    if(!line || line === '-') continue;
+    // Erlaube Tabs oder mehrere Spaces
+    const parts = line.split(/\t+/).map(s=>s.trim()).filter(Boolean);
+    if(parts.length >= 2){
+      const id = parts[0];
+      const name = parts.slice(1).join(' ');
+      newMembers.push({id, name});
+      continue;
+    }
+    // Falls Tab nicht verwendet wurde, trenne nach erstem Space (ID Name)
+    const sp = line.split(/\s+/);
+    if(sp.length >= 2 && /^\d+$/.test(sp[0])){
+      const id = sp.shift();
+      const name = sp.join(' ');
+      newMembers.push({id,name});
+      continue;
+    }
+    // Falls kein ID vorne, skip (keine Ambiguität)
+  }
+
+  // Keine Duplikate: nach ID
+  const map = new Map();
+  for(const m of memberList) map.set(m.id, m);
+  for(const m of newMembers) {
+    if(!map.has(m.id)) map.set(m.id, m);
+  }
+  memberList = Array.from(map.values());
+  updateMemberSelect('');
+  alert(memberList.length + ' Member verfügbar.');
+}
+
+/* Update Select (mit optionalem Filter) */
+function updateMemberSelect(filter){
+  const sel = document.getElementById('memberSelect');
+  sel.innerHTML = '';
+  const lower = (filter||'').toLowerCase();
+  memberList.forEach((m, idx) => {
+    if(lower && !m.name.toLowerCase().includes(lower) && !m.id.includes(lower)) return;
+    const opt = document.createElement('option');
+    opt.value = m.id; // we store id as value (robust)
+    opt.textContent = (m.id ? (m.id + ' - ') : '') + m.name;
+    sel.appendChild(opt);
+  });
+}
+
+/* Search input -> update select view */
+document.getElementById('searchInput').addEventListener('input', function(){
+  updateMemberSelect(this.value);
+});
+
+/* Add rank to queue (we store member object, not indices) */
+function addRank(){
+  const sel = document.getElementById('memberSelect');
+  if(!sel.value) return alert('Bitte Member auswählen.');
+  const memberId = sel.value;
+  const member = memberList.find(m => m.id === memberId);
+  if(!member) return alert('Member nicht gefunden.');
+  const rank = document.getElementById('rankSelect').value;
+  if(!rank) return alert('Bitte Rang auswählen.');
+  // prevent exact duplicate (same member + same rank)
+  if(queue.some(q => q.member.id === member.id && q.rank === rank)){
+    alert('Dieser RankUp ist bereits in der Queue.');
+    return;
+  }
+  queue.push({ member: { ...member }, rank });
+  // clear selection for convenience
+  sel.selectedIndex = -1;
+  document.getElementById('searchInput').value = '';
+  updateMemberSelect('');
+  renderQueuePreview();
+}
+
+/* small preview of queue below add button (optional) */
+function renderQueuePreview(){
+  // show simple preview in output area header region (kept minimal)
+  // We'll keep the main output generation separate
+  // For quick feedback, set output to header + count
+  const out = document.getElementById('output');
+  out.textContent = '# Upranks vom ' + new Date().toLocaleDateString('de-DE') + '\n\n' + 'Queue: ' + queue.length + ' Einträge\n\n';
+}
+
+/* Generate final output in the exact requested format and order */
+function generateOutput(copyImmediate=false){
+  const date = new Date().toLocaleDateString('de-DE');
+  let out = `# Upranks vom ${date}\n\n`;
+
+  // Group queue by rank preserving insertion order per group
+  const grouped = {};
+  for(const entry of queue){
+    if(!grouped[entry.rank]) grouped[entry.rank] = [];
+    grouped[entry.rank].push(entry.member);
+  }
+
+  // Append in ORDER
+  for(const rk of ORDER){
+    if(!grouped[rk] || grouped[rk].length === 0) continue;
+    const title = RANK_LABEL[rk] || rk;
+
+    // Special sections
+    if(rk === 'Double'){
+      out += `**__${title}__**\n\n`;
+      grouped[rk].forEach(m => {
+        out += `**Name:** ${m.name}\n**ID:** ${m.id}\n**Von:** ?\n**Auf:** ?\n\n`;
+      });
+      continue;
+    }
+
+    if(rk === 'EliteUp'){
+      out += `**__${title}__**\n\n`;
+      grouped[rk].forEach(m => {
+        out += `**Name:** ${m.name}\n**ID:** ${m.id}\n\n`;
+      });
+      continue;
+    }
+
+    if(rk === 'EliteStay'){
+      out += `**__${title}__**\n\n`;
+      grouped[rk].forEach(m => {
+        out += `**Name:** ${m.name}\n**ID:** ${m.id}\n\n`;
+      });
+      continue;
+    }
+
+    // default
+    out += `**__${title}__**\n\n`;
+    grouped[rk].forEach(m => {
+      out += `**Name:** ${m.name}\n**ID:** ${m.id}\n\n`;
+    });
+  }
+
+  // any other ranks not listed in ORDER appended at end (safe fallback)
+  for(const rk in grouped){
+    if(ORDER.includes(rk)) continue;
+    out += `**__${RANK_LABEL[rk] || rk}__**\n\n`;
+    grouped[rk].forEach(m => {
+      out += `**Name:** ${m.name}\n**ID:** ${m.id}\n\n`;
+    });
+  }
+
+  document.getElementById('output').textContent = out;
+  if(copyImmediate) copyOutput();
+}
+
+/* Robust copy */
+function copyOutput(){
+  const text = document.getElementById('output').textContent;
+  const ta = document.createElement('textarea');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  alert('Ausgabe kopiert!');
+}
+
+/* Init: set initial output header */
+(function init(){
+  document.getElementById('output').textContent = '# Upranks vom ' + new Date().toLocaleDateString('de-DE') + '\n\n';
+})();
+</script>
+</body>
+</html>
