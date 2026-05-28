@@ -304,7 +304,7 @@
       <button class="btn btn-info" onclick="generateDerankOutput()">Derank generieren</button>
       <button class="btn btn-success" onclick="copyOutput()">Kopieren</button>
     </div>
-    <div class="footer">FIB Rank Management · System Version 3.5</div>
+    <div class="footer">FIB Rank Management · System Version 3.6</div>
   </div>
 
 </div>
@@ -562,12 +562,29 @@ function clearMembers() {
 }
 
 function generateCombinedOutput() {
-  const items = queue.filter(i => i.mode === 'rankup' || i.mode === 'sonder' || i.mode === 'dept');
-  if (items.length === 0) return;
+  const rankups = queue.filter(i => i.mode === 'rankup');
+  const sonders = queue.filter(i => i.mode === 'sonder');
+  const depts = queue.filter(i => i.mode === 'dept');
+  
+  if (rankups.length === 0 && sonders.length === 0 && depts.length === 0) return;
   
   const today = new Date().toLocaleDateString('de-DE');
   let finalOutput = `**__Weekly Upranks vom ${today}__**\n\n`;
-  finalOutput += formatGroup(items);
+  
+  if (rankups.length > 0) {
+    finalOutput += formatGroup(rankups);
+  }
+  
+  if (sonders.length > 0) {
+    finalOutput += `**__Sonderupranks__**\n\n`;
+    finalOutput += formatGroup(sonders);
+  }
+  
+  if (depts.length > 0) {
+    finalOutput += `**__Abteilungsupranks__**\n\n`;
+    finalOutput += formatGroup(depts);
+  }
+  
   finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
   
   document.getElementById('output').textContent = finalOutput;
