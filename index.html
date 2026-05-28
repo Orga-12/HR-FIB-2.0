@@ -28,6 +28,7 @@
     --success: #44aa77;
     --orange: #e67e22;
     --purple: #9b59b6;
+    --cyan: #00ffff;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -135,6 +136,8 @@
   .btn-success:hover { background: #55bb88; }
   .btn-info { background: var(--accent2); color: var(--accent); }
   .btn-info:hover { background: #004d7a; }
+  .btn-cyan { background: var(--cyan); color: var(--fib-black); }
+  .btn-cyan:hover { background: #00cccc; }
 
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
@@ -266,6 +269,7 @@
       <div id="modeSonder" class="mode-btn" onclick="setMode('sonder')">Sonder</div>
       <div id="modeDept" class="mode-btn" onclick="setMode('dept')">Abteilung</div>
       <div id="modeDerank" class="mode-btn" onclick="setMode('derank')">Derank</div>
+      <div id="modeEmployee" class="mode-btn" onclick="setMode('employee')">Mitarbeiter d. Woche</div>
     </div>
 
     <div class="grid2">
@@ -275,12 +279,19 @@
         <select id="selectMember" size="7" style="margin-top:6px"></select>
       </div>
       <div>
-        <label id="rankLabel">Rang auswählen</label>
-        <select id="rankSelect">
-          <!-- Wird dynamisch befüllt -->
-        </select>
+        <div id="rankSelectionArea">
+          <label id="rankLabel">Rang auswählen</label>
+          <select id="rankSelect">
+            <!-- Wird dynamisch befüllt -->
+          </select>
+        </div>
+        <div id="employeeArea" style="display:none">
+          <label>Zusatz-Satz (Mitarbeiter d. Woche)</label>
+          <textarea id="employeeMessage" placeholder="z.B. Er hat diese Woche herausragende Arbeit geleistet..." style="height:100px"></textarea>
+        </div>
         <div class="btn-row" style="margin-top:10px">
-          <button class="btn btn-primary" onclick="addEntry()">+ Hinzufügen</button>
+          <button class="btn btn-primary" id="addBtn" onclick="addEntry()">+ Hinzufügen</button>
+          <button class="btn btn-cyan" id="setEmployeeBtn" onclick="setEmployee()" style="display:none">Mitarbeiter festlegen</button>
         </div>
       </div>
     </div>
@@ -290,6 +301,7 @@
   <div class="section">
     <h2>03 · Aktuelle Queue</h2>
     <div id="queueDisplay"><span style="color:var(--text-dim);font-size:13px">Noch keine Einträge.</span></div>
+    <div id="employeeDisplay" style="margin-top:10px; font-size:13px; color:var(--cyan)"></div>
     <div class="btn-row" style="margin-top:14px">
       <button class="btn btn-danger" onclick="clearQueue()">Queue leeren</button>
     </div>
@@ -304,7 +316,7 @@
       <button class="btn btn-info" onclick="generateDerankOutput()">Derank generieren</button>
       <button class="btn btn-success" onclick="copyOutput()">Kopieren</button>
     </div>
-    <div class="footer">FIB Rank Management · System Version 3.6</div>
+    <div class="footer">FIB Rank Management · System Version 3.8</div>
   </div>
 
 </div>
@@ -348,6 +360,7 @@
 let members = {};
 let queue = [];
 let currentMode = 'rankup';
+let employeeOfTheWeek = null;
 
 const rankNames = {
   "25": "Supervisory Head Agent",
@@ -433,22 +446,39 @@ function setMode(mode) {
   document.getElementById('modeSonder').classList.toggle('active', mode === 'sonder');
   document.getElementById('modeDept').classList.toggle('active', mode === 'dept');
   document.getElementById('modeDerank').classList.toggle('active', mode === 'derank');
+  document.getElementById('modeEmployee').classList.toggle('active', mode === 'employee');
   
   const label = document.getElementById('rankLabel');
   const select = document.getElementById('rankSelect');
+  const rankArea = document.getElementById('rankSelectionArea');
+  const employeeArea = document.getElementById('employeeArea');
+  const addBtn = document.getElementById('addBtn');
+  const setEmployeeBtn = document.getElementById('setEmployeeBtn');
   
-  if (mode === 'rankup') {
-    label.textContent = 'Rang auswählen (RankUp)';
-    select.innerHTML = rankUpOptions;
-  } else if (mode === 'sonder') {
-    label.textContent = 'Rang auswählen (Sonder)';
-    select.innerHTML = sonderOptions;
-  } else if (mode === 'dept') {
-    label.textContent = 'Rang auswählen (Abteilung)';
-    select.innerHTML = deptOptions;
+  if (mode === 'employee') {
+    rankArea.style.display = 'none';
+    employeeArea.style.display = 'block';
+    addBtn.style.display = 'none';
+    setEmployeeBtn.style.display = 'inline-flex';
   } else {
-    label.textContent = 'Rang auswählen (Derank)';
-    select.innerHTML = derankOptions;
+    rankArea.style.display = 'block';
+    employeeArea.style.display = 'none';
+    addBtn.style.display = 'inline-flex';
+    setEmployeeBtn.style.display = 'none';
+    
+    if (mode === 'rankup') {
+      label.textContent = 'Rang auswählen (RankUp)';
+      select.innerHTML = rankUpOptions;
+    } else if (mode === 'sonder') {
+      label.textContent = 'Rang auswählen (Sonder)';
+      select.innerHTML = sonderOptions;
+    } else if (mode === 'dept') {
+      label.textContent = 'Rang auswählen (Abteilung)';
+      select.innerHTML = deptOptions;
+    } else {
+      label.textContent = 'Rang auswählen (Derank)';
+      select.innerHTML = derankOptions;
+    }
   }
 }
 
@@ -503,6 +533,21 @@ function addEntry() {
   updateQueueDisplay();
 }
 
+function setEmployee() {
+  const memberId = document.getElementById('selectMember').value;
+  const message = document.getElementById('employeeMessage').value;
+  
+  if (!memberId) return;
+  
+  employeeOfTheWeek = {
+    id: memberId,
+    name: members[memberId],
+    message: message
+  };
+  
+  document.getElementById('employeeDisplay').textContent = `★ Mitarbeiter d. Woche: ${employeeOfTheWeek.name} (${employeeOfTheWeek.id})`;
+}
+
 function confirmDouble() {
   const from = document.getElementById('doubleFrom').value;
   const to = document.getElementById('doubleTo').value;
@@ -552,6 +597,8 @@ function removeQueueItem(idx) {
 
 function clearQueue() {
   queue = [];
+  employeeOfTheWeek = null;
+  document.getElementById('employeeDisplay').textContent = '';
   updateQueueDisplay();
 }
 
@@ -566,7 +613,7 @@ function generateCombinedOutput() {
   const sonders = queue.filter(i => i.mode === 'sonder');
   const depts = queue.filter(i => i.mode === 'dept');
   
-  if (rankups.length === 0 && sonders.length === 0 && depts.length === 0) return;
+  if (rankups.length === 0 && sonders.length === 0 && depts.length === 0 && !employeeOfTheWeek) return;
   
   const today = new Date().toLocaleDateString('de-DE');
   let finalOutput = `**__Weekly Upranks vom ${today}__**\n\n`;
@@ -584,8 +631,18 @@ function generateCombinedOutput() {
     finalOutput += `**__Abteilungsupranks__**\n\n`;
     finalOutput += formatGroup(depts);
   }
+
+  if (employeeOfTheWeek) {
+    finalOutput += `**__Mitarbeiter der Woche__**\n`;
+    finalOutput += `> **${employeeOfTheWeek.name} | ${employeeOfTheWeek.id}**\n`;
+    if (employeeOfTheWeek.message) {
+      finalOutput += `> ${employeeOfTheWeek.message}\n`;
+    }
+    finalOutput += `\nHerzlichen Glückwunsch! ★\n`;
+  }
   
-  finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
+  finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n`;
+  finalOutput += `\nMFG\nHR Leitung`;
   
   document.getElementById('output').textContent = finalOutput;
 }
