@@ -135,10 +135,6 @@
   .btn-success:hover { background: #55bb88; }
   .btn-info { background: var(--accent2); color: var(--accent); }
   .btn-info:hover { background: #004d7a; }
-  .btn-orange { background: var(--orange); color: #fff; }
-  .btn-orange:hover { background: #e67e22cc; }
-  .btn-purple { background: var(--purple); color: #fff; }
-  .btn-purple:hover { background: #9b59b6cc; }
 
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
@@ -304,13 +300,11 @@
     <h2>04 · Output</h2>
     <pre id="output">Noch kein Output generiert.</pre>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="generateOutput('rankup')">RankUp</button>
-      <button class="btn btn-orange" onclick="generateOutput('sonder')">Sonder</button>
-      <button class="btn btn-purple" onclick="generateOutput('dept')">Abteilung</button>
-      <button class="btn btn-info" onclick="generateOutput('derank')">Derank</button>
+      <button class="btn btn-primary" onclick="generateCombinedOutput()">RankUp generieren</button>
+      <button class="btn btn-info" onclick="generateDerankOutput()">Derank generieren</button>
       <button class="btn btn-success" onclick="copyOutput()">Kopieren</button>
     </div>
-    <div class="footer">FIB Rank Management · System Version 3.3</div>
+    <div class="footer">FIB Rank Management · System Version 3.4</div>
   </div>
 
 </div>
@@ -579,34 +573,35 @@ function clearMembers() {
   }
 }
 
-function generateOutput(mode) {
-  const items = queue.filter(i => i.mode === mode);
+function generateCombinedOutput() {
+  // Filtere alle positiven Beförderungen (RankUp, Sonder, Dept)
+  const items = queue.filter(i => i.mode === 'rankup' || i.mode === 'sonder' || i.mode === 'dept');
   
   if (items.length === 0) {
-    alert(`⚠ Keine Einträge für ${mode.toUpperCase()} in der Queue!`);
+    alert(`⚠ Keine RankUps in der Queue!`);
     return;
   }
   
   const today = new Date().toLocaleDateString('de-DE');
-  let finalOutput = "";
+  let finalOutput = `**__Weekly Upranks vom ${today}__**\n\n`;
+  finalOutput += formatGroup(items);
+  finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
+  
+  document.getElementById('output').textContent = finalOutput;
+}
 
-  if (mode === 'rankup') {
-    finalOutput += `**__Weekly Upranks vom ${today}__**\n\n`;
-    finalOutput += formatGroup(items);
-    finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
-  } else if (mode === 'sonder') {
-    finalOutput += `**__Sonderupranks vom ${today}__**\n\n`;
-    finalOutput += formatGroup(items);
-    finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
-  } else if (mode === 'dept') {
-    finalOutput += `**__Abteilungsupranks vom ${today}__**\n\n`;
-    finalOutput += formatGroup(items);
-    finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
-  } else {
-    finalOutput += `**__Deranks vom ${today}__**\n\n`;
-    finalOutput += formatGroup(items);
-    finalOutput += `\nMFG\nHR Leitung`;
+function generateDerankOutput() {
+  const items = queue.filter(i => i.mode === 'derank');
+  
+  if (items.length === 0) {
+    alert(`⚠ Keine Deranks in der Queue!`);
+    return;
   }
+  
+  const today = new Date().toLocaleDateString('de-DE');
+  let finalOutput = `**__Deranks vom ${today}__**\n\n`;
+  finalOutput += formatGroup(items);
+  finalOutput += `\nMFG\nHR Leitung`;
   
   document.getElementById('output').textContent = finalOutput;
 }
