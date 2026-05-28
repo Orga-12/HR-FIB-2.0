@@ -26,6 +26,8 @@
     --heading: #d4af37;
     --danger: #cc3355;
     --success: #44aa77;
+    --orange: #e67e22;
+    --purple: #9b59b6;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -133,6 +135,10 @@
   .btn-success:hover { background: #55bb88; }
   .btn-info { background: var(--accent2); color: var(--accent); }
   .btn-info:hover { background: #004d7a; }
+  .btn-orange { background: var(--orange); color: #fff; }
+  .btn-orange:hover { background: #e67e22cc; }
+  .btn-purple { background: var(--purple); color: #fff; }
+  .btn-purple:hover { background: #9b59b6cc; }
 
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
@@ -212,6 +218,28 @@
   @media(max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
 
   select option { padding: 4px; }
+
+  /* OVERLAY */
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.82);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .overlay.active { display: flex; }
+  .overlay-box {
+    background: var(--bg2);
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    padding: 28px;
+    width: 440px;
+    max-width: 95vw;
+    box-shadow: 0 0 40px rgba(212,175,55,0.25);
+  }
+  .overlay-box h3 { color: var(--accent); font-size: 1.2rem; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 18px; }
+  .overlay-member { background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-family: 'Share Tech Mono', monospace; font-size: 14px; color: var(--accent); }
 </style>
 </head>
 <body>
@@ -239,6 +267,8 @@
     
     <div class="mode-selector">
       <div id="modeRankUp" class="mode-btn active" onclick="setMode('rankup')">RankUp</div>
+      <div id="modeSonder" class="mode-btn" onclick="setMode('sonder')">Sonder</div>
+      <div id="modeDept" class="mode-btn" onclick="setMode('dept')">Abteilung</div>
       <div id="modeDerank" class="mode-btn" onclick="setMode('derank')">Derank</div>
     </div>
 
@@ -249,7 +279,7 @@
         <select id="selectMember" size="7" style="margin-top:6px"></select>
       </div>
       <div>
-        <label id="rankLabel">Rang auswählen (RankUp)</label>
+        <label id="rankLabel">Rang auswählen</label>
         <select id="rankSelect">
           <!-- Wird dynamisch befüllt -->
         </select>
@@ -274,13 +304,50 @@
     <h2>04 · Output</h2>
     <pre id="output">Noch kein Output generiert.</pre>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="generateOutput('rankup')">RankUp generieren</button>
-      <button class="btn btn-info" onclick="generateOutput('derank')">Derank generieren</button>
+      <button class="btn btn-primary" onclick="generateOutput('rankup')">RankUp</button>
+      <button class="btn btn-orange" onclick="generateOutput('sonder')">Sonder</button>
+      <button class="btn btn-purple" onclick="generateOutput('dept')">Abteilung</button>
+      <button class="btn btn-info" onclick="generateOutput('derank')">Derank</button>
       <button class="btn btn-success" onclick="copyOutput()">Kopieren</button>
     </div>
-    <div class="footer">FIB Rank Management · System Version 3.2</div>
+    <div class="footer">FIB Rank Management · System Version 3.3</div>
   </div>
 
+</div>
+
+<!-- DOUBLE RANK OVERLAY -->
+<div id="doubleOverlay" class="overlay">
+  <div class="overlay-box">
+    <h3>Double RankUp</h3>
+    <div id="overlayMemberName" class="overlay-member"></div>
+    <label>Von Rang</label>
+    <select id="doubleFrom">
+      <option value="7">7. New Agent Trainee</option>
+      <option value="8">8. Agent</option>
+      <option value="9">9. Field Agent</option>
+      <option value="10">10. Agent First Class</option>
+      <option value="12">12. Senior Agent</option>
+      <option value="13">13. Enforcement Agent</option>
+      <option value="14">14. Executive Agent</option>
+      <option value="15">15. Principal Field Agent</option>
+      <option value="16">16. Federal Operations Agent</option>
+    </select>
+    <label>Auf Rang</label>
+    <select id="doubleTo">
+      <option value="9">9. Field Agent</option>
+      <option value="10">10. Agent First Class</option>
+      <option value="12">12. Senior Agent</option>
+      <option value="13">13. Enforcement Agent</option>
+      <option value="14">14. Executive Agent</option>
+      <option value="15">15. Principal Field Agent</option>
+      <option value="16">16. Federal Operations Agent</option>
+      <option value="17">17. Commander</option>
+    </select>
+    <div class="btn-row" style="margin-top:20px">
+      <button class="btn btn-primary" onclick="confirmDouble()">Bestätigen</button>
+      <button class="btn btn-danger" onclick="closeOverlay()">Abbrechen</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -324,10 +391,26 @@ const rankUpOptions = `
     <option value="15-16">15 → 16 · Principal Field Agent → Federal Operations Agent</option>
     <option value="16-17">16 → 17 · Federal Operations Agent → Commander</option>
   </optgroup>
-  <optgroup label="Abteilung">
-    <option value="dept-18">→ 18. Department Specialist</option>
-    <option value="dept-19">→ 19. Tactical Operator</option>
-  </optgroup>
+`;
+
+const sonderOptions = `
+  <option value="">— Rang wählen —</option>
+  <option value="7-8">7 → 8 · New Agent Trainee → Agent</option>
+  <option value="8-9">8 → 9 · Agent → Field Agent</option>
+  <option value="9-10">9 → 10 · Field Agent → Agent First Class</option>
+  <option value="10-12">10 → 12 · Agent First Class → Senior Agent</option>
+  <option value="12-13">12 → 13 · Senior Agent → Enforcement Agent</option>
+  <option value="13-14">13 → 14 · Enforcement Agent → Executive Agent</option>
+  <option value="14-15">14 → 15 · Executive Agent → Principal Field Agent</option>
+  <option value="15-16">15 → 16 · Principal Field Agent → Federal Operations Agent</option>
+  <option value="16-17">16 → 17 · Federal Operations Agent → Commander</option>
+  <option value="double">⚡ Double RankUp (Sonderbeförderung)</option>
+`;
+
+const deptOptions = `
+  <option value="">— Rang wählen —</option>
+  <option value="dept-18">→ 18. Department Specialist</option>
+  <option value="dept-19">→ 19. Tactical Operator</option>
 `;
 
 const derankOptions = `
@@ -353,6 +436,8 @@ const derankOptions = `
 function setMode(mode) {
   currentMode = mode;
   document.getElementById('modeRankUp').classList.toggle('active', mode === 'rankup');
+  document.getElementById('modeSonder').classList.toggle('active', mode === 'sonder');
+  document.getElementById('modeDept').classList.toggle('active', mode === 'dept');
   document.getElementById('modeDerank').classList.toggle('active', mode === 'derank');
   
   const label = document.getElementById('rankLabel');
@@ -361,6 +446,12 @@ function setMode(mode) {
   if (mode === 'rankup') {
     label.textContent = 'Rang auswählen (RankUp)';
     select.innerHTML = rankUpOptions;
+  } else if (mode === 'sonder') {
+    label.textContent = 'Rang auswählen (Sonder)';
+    select.innerHTML = sonderOptions;
+  } else if (mode === 'dept') {
+    label.textContent = 'Rang auswählen (Abteilung)';
+    select.innerHTML = deptOptions;
   } else {
     label.textContent = 'Rang auswählen (Derank)';
     select.innerHTML = derankOptions;
@@ -411,9 +502,39 @@ function addEntry() {
   }
   
   const memberName = members[memberId];
+  
+  if (rankValue === 'double') {
+    document.getElementById('overlayMemberName').textContent = `${memberId} · ${memberName}`;
+    document.getElementById('doubleOverlay').classList.add('active');
+    window.currentDoubleMemberId = memberId;
+    window.currentDoubleMemberName = memberName;
+    return;
+  }
+  
   queue.push({ id: memberId, name: memberName, rank: rankValue, mode: currentMode });
   updateQueueDisplay();
   alert(`✓ ${memberName} (${currentMode.toUpperCase()}) hinzugefügt!`);
+}
+
+function confirmDouble() {
+  const from = document.getElementById('doubleFrom').value;
+  const to = document.getElementById('doubleTo').value;
+  const rankValue = `double-${from}-${to}`;
+  
+  queue.push({
+    id: window.currentDoubleMemberId,
+    name: window.currentDoubleMemberName,
+    rank: rankValue,
+    mode: 'sonder'
+  });
+  
+  closeOverlay();
+  updateQueueDisplay();
+  alert('✓ Double RankUp hinzugefügt!');
+}
+
+function closeOverlay() {
+  document.getElementById('doubleOverlay').classList.remove('active');
 }
 
 function updateQueueDisplay() {
@@ -425,7 +546,12 @@ function updateQueueDisplay() {
   
   let html = '<div class="queue-group">';
   queue.forEach((item, idx) => {
-    const modeTag = item.mode === 'rankup' ? '<span style="color:var(--success);font-size:10px">[UP]</span>' : '<span style="color:var(--danger);font-size:10px">[DOWN]</span>';
+    let color = 'var(--success)';
+    if (item.mode === 'derank') color = 'var(--danger)';
+    if (item.mode === 'sonder') color = 'var(--orange)';
+    if (item.mode === 'dept') color = 'var(--purple)';
+    
+    const modeTag = `<span style="color:${color};font-size:10px">[${item.mode.toUpperCase()}]</span>`;
     html += `<div class="queue-item"><span>${modeTag} ${item.name} (${item.rank})</span><button class="remove-btn" onclick="removeQueueItem(${idx})">×</button></div>`;
   });
   html += '</div>';
@@ -457,7 +583,7 @@ function generateOutput(mode) {
   const items = queue.filter(i => i.mode === mode);
   
   if (items.length === 0) {
-    alert(`⚠ Keine ${mode === 'rankup' ? 'RankUps' : 'Deranks'} in der Queue!`);
+    alert(`⚠ Keine Einträge für ${mode.toUpperCase()} in der Queue!`);
     return;
   }
   
@@ -466,6 +592,14 @@ function generateOutput(mode) {
 
   if (mode === 'rankup') {
     finalOutput += `**__Weekly Upranks vom ${today}__**\n\n`;
+    finalOutput += formatGroup(items);
+    finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
+  } else if (mode === 'sonder') {
+    finalOutput += `**__Sonderupranks vom ${today}__**\n\n`;
+    finalOutput += formatGroup(items);
+    finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
+  } else if (mode === 'dept') {
+    finalOutput += `**__Abteilungsupranks vom ${today}__**\n\n`;
     finalOutput += formatGroup(items);
     finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
   } else {
@@ -490,6 +624,10 @@ function formatGroup(items) {
     } else if (item.rank.startsWith('dept-')) {
       toRank = item.rank.replace('dept-', '');
       fromRank = null;
+    } else if (item.rank.startsWith('double-')) {
+      const parts = item.rank.replace('double-', '').split('-');
+      fromRank = parts[0];
+      toRank = parts[1];
     } else {
       const parts = item.rank.split('-');
       fromRank = parts[0];
