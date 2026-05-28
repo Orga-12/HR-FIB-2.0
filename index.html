@@ -304,7 +304,7 @@
       <button class="btn btn-info" onclick="generateDerankOutput()">Derank generieren</button>
       <button class="btn btn-success" onclick="copyOutput()">Kopieren</button>
     </div>
-    <div class="footer">FIB Rank Management · System Version 3.4</div>
+    <div class="footer">FIB Rank Management · System Version 3.5</div>
   </div>
 
 </div>
@@ -458,18 +458,15 @@ setMode('rankup');
 function importMembers() {
   const input = document.getElementById('memberInput').value;
   const lines = input.split('\n');
-  let count = 0;
   
   lines.forEach(line => {
     const match = line.trim().match(/^(\d+)\s+(.+)$/);
     if (match) {
       members[match[1]] = match[2].trim();
-      count++;
     }
   });
   
   updateSelect('selectMember', '');
-  alert(`✓ ${count} Mitglieder erfolgreich importiert!`);
 }
 
 function updateSelect(id, searchTerm) {
@@ -490,10 +487,7 @@ function addEntry() {
   const memberId = document.getElementById('selectMember').value;
   const rankValue = document.getElementById('rankSelect').value;
   
-  if (!memberId || !rankValue) {
-    alert('⚠ Bitte Mitglied und Rang auswählen!');
-    return;
-  }
+  if (!memberId || !rankValue) return;
   
   const memberName = members[memberId];
   
@@ -507,7 +501,6 @@ function addEntry() {
   
   queue.push({ id: memberId, name: memberName, rank: rankValue, mode: currentMode });
   updateQueueDisplay();
-  alert(`✓ ${memberName} (${currentMode.toUpperCase()}) hinzugefügt!`);
 }
 
 function confirmDouble() {
@@ -524,7 +517,6 @@ function confirmDouble() {
   
   closeOverlay();
   updateQueueDisplay();
-  alert('✓ Double RankUp hinzugefügt!');
 }
 
 function closeOverlay() {
@@ -559,28 +551,19 @@ function removeQueueItem(idx) {
 }
 
 function clearQueue() {
-  if (confirm('Wirklich alle Einträge löschen?')) {
-    queue = [];
-    updateQueueDisplay();
-  }
+  queue = [];
+  updateQueueDisplay();
 }
 
 function clearMembers() {
-  if (confirm('Wirklich alle Mitglieder löschen?')) {
-    members = {};
-    document.getElementById('memberInput').value = '';
-    updateSelect('selectMember', '');
-  }
+  members = {};
+  document.getElementById('memberInput').value = '';
+  updateSelect('selectMember', '');
 }
 
 function generateCombinedOutput() {
-  // Filtere alle positiven Beförderungen (RankUp, Sonder, Dept)
   const items = queue.filter(i => i.mode === 'rankup' || i.mode === 'sonder' || i.mode === 'dept');
-  
-  if (items.length === 0) {
-    alert(`⚠ Keine RankUps in der Queue!`);
-    return;
-  }
+  if (items.length === 0) return;
   
   const today = new Date().toLocaleDateString('de-DE');
   let finalOutput = `**__Weekly Upranks vom ${today}__**\n\n`;
@@ -592,11 +575,7 @@ function generateCombinedOutput() {
 
 function generateDerankOutput() {
   const items = queue.filter(i => i.mode === 'derank');
-  
-  if (items.length === 0) {
-    alert(`⚠ Keine Deranks in der Queue!`);
-    return;
-  }
+  if (items.length === 0) return;
   
   const today = new Date().toLocaleDateString('de-DE');
   let finalOutput = `**__Deranks vom ${today}__**\n\n`;
@@ -648,12 +627,8 @@ function formatGroup(items) {
 
 function copyOutput() {
   const output = document.getElementById('output').textContent;
-  if (output === "Noch kein Output generiert.") {
-      alert("⚠ Bitte zuerst den Output generieren!");
-      return;
-  }
+  if (output === "Noch kein Output generiert.") return;
   navigator.clipboard.writeText(output);
-  alert('✓ Output kopiert!');
 }
 </script>
 </body>
