@@ -131,6 +131,8 @@
   .btn-danger:hover { background: #dd4466; }
   .btn-success { background: var(--success); color: #fff; }
   .btn-success:hover { background: #55bb88; }
+  .btn-info { background: var(--accent2); color: var(--accent); }
+  .btn-info:hover { background: #004d7a; }
 
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
@@ -272,11 +274,11 @@
     <h2>04 · Output</h2>
     <pre id="output">Noch kein Output generiert.</pre>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="generateOutput()">Generieren</button>
-      <button class="btn btn-primary" onclick="generateOutput(true)">Generieren & Kopieren</button>
-      <button class="btn btn-success" onclick="copyOutput()">Nur Kopieren</button>
+      <button class="btn btn-primary" onclick="generateOutput('rankup')">RankUp generieren</button>
+      <button class="btn btn-info" onclick="generateOutput('derank')">Derank generieren</button>
+      <button class="btn btn-success" onclick="copyOutput()">Kopieren</button>
     </div>
-    <div class="footer">FIB Rank Management · System Version 3.1</div>
+    <div class="footer">FIB Rank Management · System Version 3.2</div>
   </div>
 
 </div>
@@ -451,44 +453,28 @@ function clearMembers() {
   }
 }
 
-function generateOutput(copy = false) {
-  if (queue.length === 0) {
-    alert('⚠ Die Queue ist leer!');
+function generateOutput(mode) {
+  const items = queue.filter(i => i.mode === mode);
+  
+  if (items.length === 0) {
+    alert(`⚠ Keine ${mode === 'rankup' ? 'RankUps' : 'Deranks'} in der Queue!`);
     return;
   }
   
   const today = new Date().toLocaleDateString('de-DE');
-  
-  const rankUps = queue.filter(i => i.mode === 'rankup');
-  const deranks = queue.filter(i => i.mode === 'derank');
-  
   let finalOutput = "";
 
-  if (rankUps.length > 0) {
+  if (mode === 'rankup') {
     finalOutput += `**__Weekly Upranks vom ${today}__**\n\n`;
-    finalOutput += formatGroup(rankUps);
-    
-    // Nur wenn RankUps vorhanden sind, kommt der Glückwunsch-Text
+    finalOutput += formatGroup(items);
     finalOutput += `\n**Ich bitte um Herzliche Glückwünsche an alle Beförderten!** || <@&1156202809432227890> ||\n\nMFG\nHR Leitung`;
-  }
-
-  if (deranks.length > 0) {
-    if (finalOutput) finalOutput += "\n\n---\n\n"; // Trenner falls beides da ist
+  } else {
     finalOutput += `**__Deranks vom ${today}__**\n\n`;
-    finalOutput += formatGroup(deranks);
-    
-    // Bei Deranks kommt KEIN Glückwunsch-Text am Ende
-    if (rankUps.length === 0) {
-        finalOutput += `\nMFG\nHR Leitung`;
-    }
+    finalOutput += formatGroup(items);
+    finalOutput += `\nMFG\nHR Leitung`;
   }
   
   document.getElementById('output').textContent = finalOutput;
-  
-  if (copy) {
-    navigator.clipboard.writeText(finalOutput);
-    alert('✓ Output kopiert!');
-  }
 }
 
 function formatGroup(items) {
