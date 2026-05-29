@@ -316,7 +316,7 @@
       <button class="btn btn-info" onclick="generateDerankOutput()">Derank generieren</button>
       <button class="btn btn-success" onclick="copyOutput()">Kopieren</button>
     </div>
-    <div class="footer">FIB Rank Management · System Version 3.8</div>
+    <div class="footer">FIB Rank Management · System Version 4.1</div>
   </div>
 
 </div>
@@ -337,6 +337,9 @@
       <option value="14">14. Executive Agent</option>
       <option value="15">15. Principal Field Agent</option>
       <option value="16">16. Federal Operations Agent</option>
+      <option value="17">17. Commander</option>
+      <option value="23">23. Special Agent in Charge</option>
+      <option value="24">24. Supervisory Special Agent</option>
     </select>
     <label>Auf Rang</label>
     <select id="doubleTo">
@@ -348,6 +351,9 @@
       <option value="15">15. Principal Field Agent</option>
       <option value="16">16. Federal Operations Agent</option>
       <option value="17">17. Commander</option>
+      <option value="23">23. Special Agent in Charge</option>
+      <option value="24">24. Supervisory Special Agent</option>
+      <option value="25">25. Supervisory Head Agent</option>
     </select>
     <div class="btn-row" style="margin-top:20px">
       <button class="btn btn-primary" onclick="confirmDouble()">Bestätigen</button>
@@ -402,16 +408,23 @@ const rankUpOptions = `
 
 const sonderOptions = `
   <option value="">— Rang wählen —</option>
-  <option value="7-8">7 → 8 · New Agent Trainee → Agent</option>
-  <option value="8-9">8 → 9 · Agent → Field Agent</option>
-  <option value="9-10">9 → 10 · Field Agent → Agent First Class</option>
-  <option value="10-12">10 → 12 · Agent First Class → Senior Agent</option>
-  <option value="12-13">12 → 13 · Senior Agent → Enforcement Agent</option>
-  <option value="13-14">13 → 14 · Enforcement Agent → Executive Agent</option>
-  <option value="14-15">14 → 15 · Executive Agent → Principal Field Agent</option>
-  <option value="15-16">15 → 16 · Principal Field Agent → Federal Operations Agent</option>
-  <option value="16-17">16 → 17 · Federal Operations Agent → Commander</option>
-  <option value="double">⚡ Double RankUp (Sonderbeförderung)</option>
+  <optgroup label="High Command (Sonder)">
+    <option value="hc-23">→ 23. Special Agent in Charge (HC Einstieg)</option>
+    <option value="23-24">23 → 24 · Special Agent in Charge → Supervisory Special Agent</option>
+    <option value="24-25">24 → 25 · Supervisory Special Agent → Supervisory Head Agent</option>
+  </optgroup>
+  <optgroup label="Standard (Sonder)">
+    <option value="7-8">7 → 8 · New Agent Trainee → Agent</option>
+    <option value="8-9">8 → 9 · Agent → Field Agent</option>
+    <option value="9-10">9 → 10 · Field Agent → Agent First Class</option>
+    <option value="10-12">10 → 12 · Agent First Class → Senior Agent</option>
+    <option value="12-13">12 → 13 · Senior Agent → Enforcement Agent</option>
+    <option value="13-14">13 → 14 · Enforcement Agent → Executive Agent</option>
+    <option value="14-15">14 → 15 · Executive Agent → Principal Field Agent</option>
+    <option value="15-16">15 → 16 · Principal Field Agent → Federal Operations Agent</option>
+    <option value="16-17">16 → 17 · Federal Operations Agent → Commander</option>
+    <option value="double">⚡ Double RankUp (Sonderbeförderung)</option>
+  </optgroup>
 `;
 
 const deptOptions = `
@@ -609,29 +622,48 @@ function clearMembers() {
 }
 
 function generateCombinedOutput() {
-  const rankups = queue.filter(i => i.mode === 'rankup');
-  const sonders = queue.filter(i => i.mode === 'sonder');
+  // Filtern nach Kategorien
+  const hcs_normal = queue.filter(i => i.mode === 'rankup' && (i.rank.startsWith('hc-') || i.rank === '23-24' || i.rank === '24-25'));
+  const hcs_sonder = queue.filter(i => i.mode === 'sonder' && (i.rank.startsWith('hc-') || i.rank === '23-24' || i.rank === '24-25'));
+  
+  const rankups = queue.filter(i => i.mode === 'rankup' && !hcs_normal.includes(i));
+  const sonders = queue.filter(i => i.mode === 'sonder' && !hcs_sonder.includes(i));
   const depts = queue.filter(i => i.mode === 'dept');
   
-  if (rankups.length === 0 && sonders.length === 0 && depts.length === 0 && !employeeOfTheWeek) return;
+  if (rankups.length === 0 && sonders.length === 0 && depts.length === 0 && hcs_normal.length === 0 && hcs_sonder.length === 0 && !employeeOfTheWeek) return;
   
   const today = new Date().toLocaleDateString('de-DE');
   let finalOutput = `**__Weekly Upranks vom ${today}__**\n\n`;
   
+  // HC-Block nur für normale RankUps
+  if (hcs_normal.length > 0) {
+    finalOutput += `**__High Command Upranks__**\n\n`;
+    finalOutput += formatGroup(hcs_normal);
+  }
+
+  // Normale RankUps
   if (rankups.length > 0) {
     finalOutput += formatGroup(rankups);
   }
   
-  if (sonders.length > 0) {
+  // Sonderupranks (inkl. HC wenn dort gewählt)
+  if (sonders.length > 0 || hcs_sonder.length > 0) {
     finalOutput += `**__Sonderupranks__**\n\n`;
-    finalOutput += formatGroup(sonders);
+    if (hcs_sonder.length > 0) {
+      finalOutput += formatGroup(hcs_sonder);
+    }
+    if (sonders.length > 0) {
+      finalOutput += formatGroup(sonders);
+    }
   }
   
+  // Abteilung
   if (depts.length > 0) {
     finalOutput += `**__Abteilungsupranks__**\n\n`;
     finalOutput += formatGroup(depts);
   }
 
+  // Mitarbeiter der Woche
   if (employeeOfTheWeek) {
     finalOutput += `**__Mitarbeiter der Woche__**\n`;
     finalOutput += `> **${employeeOfTheWeek.name} | ${employeeOfTheWeek.id}**\n`;
